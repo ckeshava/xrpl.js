@@ -251,6 +251,9 @@ export async function getSignedTx(
         (decode(transaction) as unknown as SubmittableTransaction)
       : transaction
 
+  console.log('successfully decoded txn:')
+  console.log(tx)
+
   if (autofill) {
     tx = await client.autofill(tx)
   }
