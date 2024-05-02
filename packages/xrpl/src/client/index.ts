@@ -645,8 +645,8 @@ class Client extends EventEmitter<EventTypes> {
   ): Promise<T> {
     const tx = { ...transaction }
 
+    // the below two functions accept only Transaction objects.
     setValidAddresses(tx)
-
     setTransactionFlagsToNumber(tx)
 
     const promises: Array<Promise<void>> = []
@@ -666,7 +666,35 @@ class Client extends EventEmitter<EventTypes> {
       promises.push(checkAccountDeleteBlockers(this, tx))
     }
 
-    return Promise.all(promises).then(() => tx)
+    // further manipulation of tx_ uses non-SubmittableTransaction types, hence we need a typecast to any
+    let tx_ = tx as any
+
+    if (tx_.TransactionType === 'Payment') {
+      if (tx_.Amount == null) {
+        // If only DeliverMax is provided, use it to populate the Amount field
+        if (tx_.DeliverMax != null) {
+          tx_.Amount = tx_.DeliverMax
+        }
+      }
+
+      // If Amount is not identical to DeliverMax, throw an error
+      if (
+        tx_.DeliverMax != null &&
+        tx_.Amount != null &&
+        tx_.Amount !== tx_.DeliverMax
+      ) {
+        throw new ValidationError(
+          'PaymentTransaction: Amount and DeliverMax fields must be identical',
+        )
+      }
+
+      // remove the DeliverMax field
+      if (tx_.DeliverMax != null) {
+        delete tx_.DeliverMax
+      }
+    }
+
+    return Promise.all(promises).then(() => tx_)
   }
 
   /**
