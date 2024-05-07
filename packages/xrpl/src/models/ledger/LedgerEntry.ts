@@ -52,6 +52,7 @@ type LedgerEntryFilter =
   | 'nft_offer'
   | 'nft_page'
   | 'offer'
+  | 'oracle'
   | 'payment_channel'
   | 'signer_list'
   | 'state'
