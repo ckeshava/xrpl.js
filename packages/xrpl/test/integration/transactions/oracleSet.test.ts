@@ -8,6 +8,7 @@ import {
   type XrplIntegrationTestContext,
 } from '../setup'
 import { testTransaction } from '../utils'
+import { stringToHex } from '../../../../isomorphic/utils'
 
 // how long before each test case times out
 const TIMEOUT = 20000
@@ -38,17 +39,9 @@ describe('OracleSet', function () {
             },
           },
         ],
-        // Provider: '70726F7669646572',
-        // URI: '6469645F6578616D706C65',
-        // AssetClass: 'currency',
-        // PriceDataSeries: [
-        //   {
-        //     BaseAsset: 'XRP',
-        //     QuoteAsset: 'USD',
-        //     AssetPrice: 740,
-        //     Scale: 3,
-        //   },
-        // ],
+        Provider: stringToHex('chainlink'),
+        URI: '6469645F6578616D706C65',
+        AssetClass: stringToHex('currency'),
       }
 
       await testTransaction(testContext.client, tx, testContext.wallet)
