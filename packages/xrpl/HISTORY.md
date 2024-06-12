@@ -4,9 +4,20 @@ Subscribe to [the **xrpl-announce** mailing list](https://groups.google.com/g/xr
 
 ## Unreleased
 
+## 3.1.0 (2024-06-03)
+
+### BREAKING CHANGES
+* Small fix in the API to use a new flag name `tfNoDirectRipple` instead of the existing flag name `tfNoRippleDirect`
+
+### Added
+* Support for the Price Oracles amendment (XLS-47).
+
 ### Fixed
 * Typo in `Channel` type `source_tab` -> `source_tag`
 * Fix `client.requestAll` to handle filters better
+* Add the missing `AMMDeposit` flag `tfTwoAssetIfEmpty`
+* Add missing `lsfAMMNode` flag to `RippleState` ledger object
+* Add `PreviousFields` to `DeletedNode` metadata type
 
 ## 3.0.0 (2024-02-01)
 
