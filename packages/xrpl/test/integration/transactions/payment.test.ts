@@ -1,6 +1,6 @@
 import { assert } from 'chai'
 
-import { Payment, Wallet } from '../../../src'
+import { Payment, ValidationError, Wallet } from '../../../src'
 import serverUrl from '../serverUrl'
 import {
   setupClient,
@@ -34,7 +34,12 @@ describe('Payment', function () {
     testContext = await setupClient(serverUrl)
     senderWallet = await generateFundedWallet(testContext.client)
   })
-  afterAll(async () => teardownClient(testContext))
+  afterAll(async () => {
+    // certain tests might result in termination of websocket connection in the course of events
+    if (testContext.client.isConnected()) {
+      await teardownClient(testContext)
+    }
+  })
 
   it(
     'base',
@@ -102,4 +107,43 @@ describe('Payment', function () {
     },
     TIMEOUT,
   )
+})
+
+describe('Negative test case of Payment transaction -- websocket closes due to an exception', function () {
+  let testContext: XrplIntegrationTestContext
+  let paymentTx: Payment
+  const AMOUNT = '10000000'
+  // This wallet is used for DeliverMax related tests
+  let senderWallet: Wallet
+
+  beforeEach(async () => {
+    // this payment transaction JSON needs to be refreshed before every test.
+    // Because, we tinker with Amount and DeliverMax fields in the API v2 tests
+    paymentTx = {
+      TransactionType: 'Payment',
+      Account: senderWallet.classicAddress,
+      Amount: AMOUNT,
+      Destination: 'rfkE1aSy9G8Upk4JssnwBxhEv5p4mn2KTy',
+    }
+  })
+
+  beforeAll(async () => {
+    testContext = await setupClient(serverUrl)
+    senderWallet = await generateFundedWallet(testContext.client)
+  })
+
+  it('Payment transaction with differing DeliverMax and Amount fields', async () => {
+    // @ts-expect-error -- DeliverMax is a non-protocol, RPC level field in Payment transactions
+    paymentTx.DeliverMax = '7890'
+
+    try {
+      await testTransaction(testContext.client, paymentTx, senderWallet)
+    } catch (error) {
+      assert(error instanceof ValidationError)
+      assert.equal(
+        error.message,
+        'PaymentTransaction: Amount and DeliverMax fields must be identical when both are provided',
+      )
+    }
+  })
 })
