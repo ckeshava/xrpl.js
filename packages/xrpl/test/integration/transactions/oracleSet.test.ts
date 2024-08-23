@@ -39,6 +39,14 @@ describe('OracleSet', function () {
               Scale: 3,
             },
           },
+          {
+            PriceData: {
+              BaseAsset: 'ABC',
+              QuoteAsset: 'DEF',
+              AssetPrice: 111,
+              Scale: 2,
+            },
+          },
         ],
         Provider: stringToHex('chainlink'),
         URI: '6469645F6578616D706C65',
@@ -62,11 +70,16 @@ describe('OracleSet', function () {
       assert.equal(oracle.Owner, testContext.wallet.classicAddress)
       assert.equal(oracle.AssetClass, tx.AssetClass)
       assert.equal(oracle.Provider, tx.Provider)
-      assert.equal(oracle.PriceDataSeries.length, 1)
+      assert.equal(oracle.PriceDataSeries.length, 2)
       assert.equal(oracle.PriceDataSeries[0].PriceData.BaseAsset, 'XRP')
       assert.equal(oracle.PriceDataSeries[0].PriceData.QuoteAsset, 'USD')
       assert.equal(oracle.PriceDataSeries[0].PriceData.AssetPrice, '2e4')
       assert.equal(oracle.PriceDataSeries[0].PriceData.Scale, 3)
+
+      assert.equal(oracle.PriceDataSeries[1].PriceData.BaseAsset, 'ABC')
+      assert.equal(oracle.PriceDataSeries[1].PriceData.QuoteAsset, 'DEF')
+      assert.equal(oracle.PriceDataSeries[1].PriceData.AssetPrice, '6f') // 6f in hexa-decimal translates to 111 in decimal system
+      assert.equal(oracle.PriceDataSeries[1].PriceData.Scale, 2)
       assert.equal(oracle.Flags, 0)
     },
     TIMEOUT,
