@@ -3,6 +3,7 @@ import { assert } from 'chai'
 
 import { OracleSet } from '../../../src'
 import { Oracle } from '../../../src/models/ledger'
+import { getSignedTx } from '../../../src/sugar'
 import serverUrl from '../serverUrl'
 import {
   setupClient,
@@ -52,6 +53,48 @@ describe('OracleSet', function () {
         URI: '6469645F6578616D706C65',
         AssetClass: stringToHex('currency'),
       }
+
+      // this is a canary transaction with single data element update
+      // it is used to compare the differences in transaction signatures between `tx` and `tx_single_update`
+      const tx_single_update: OracleSet = {
+        TransactionType: 'OracleSet',
+        Account: testContext.wallet.classicAddress,
+        OracleDocumentID: 1234,
+        LastUpdateTime: Math.floor(Date.now() / 1000),
+        PriceDataSeries: [
+          {
+            PriceData: {
+              BaseAsset: 'XRP',
+              QuoteAsset: 'USD',
+              AssetPrice: 740,
+              Scale: 3,
+            },
+          },
+        ],
+        Provider: stringToHex('chainlink'),
+        URI: '6469645F6578616D706C65',
+        AssetClass: stringToHex('currency'),
+      }
+
+      const signed_tx_multiple_update = await getSignedTx(
+        testContext.client,
+        tx,
+        {
+          wallet: testContext.wallet,
+        },
+      )
+
+      const signed_tx_single_update = await getSignedTx(
+        testContext.client,
+        tx_single_update,
+        {
+          wallet: testContext.wallet,
+        },
+      )
+
+      // the below assertion is false. Its retained for illustration purposes
+      // the last 12 characters are different: `...4445460000000000E1F1` and `...5553440000000000E1F1`
+      assert.equal(signed_tx_multiple_update, signed_tx_single_update)
 
       await testTransaction(testContext.client, tx, testContext.wallet)
 
