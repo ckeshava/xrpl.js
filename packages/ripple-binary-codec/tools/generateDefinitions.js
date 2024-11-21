@@ -49,12 +49,7 @@ const transactionsMacroFile = readFile(
 const capitalizationExceptions = {
   NFTOKEN: 'NFToken',
   URITOKEN: 'URIToken',
-  URI: 'URI',
-  UNL: 'UNL',
   XCHAIN: 'XChain',
-  DID: 'DID',
-  ID: 'ID',
-  AMM: 'AMM',
 }
 
 // Translate from rippled string format to what the binary codecs expect
