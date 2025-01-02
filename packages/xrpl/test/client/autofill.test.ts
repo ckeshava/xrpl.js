@@ -6,6 +6,7 @@ import {
   EscrowFinish,
   Payment,
   Transaction,
+  IssuedCurrencyAmount,
 } from '../../src'
 import { ValidationError } from '../../src/errors'
 import rippled from '../fixtures/rippled'
@@ -76,6 +77,23 @@ describe('client.autofill', function () {
     const txResult = await testContext.client.autofill(paymentTx)
 
     assert.strictEqual(txResult.Amount, AMOUNT)
+  })
+
+  it('Validate Payment transaction API v2: Payment Transaction: differing DeliverMax and Amount fields using amount objects', async function () {
+    const issued_amount: IssuedCurrencyAmount = {
+      currency: 'USD',
+      value: AMOUNT,
+      issuer: 'r9vbV3EHvXWjSkeQ6CAcYVPGeq7TuiXY2X',
+    }
+    // @ts-expect-error -- DeliverMax is a non-protocol, RPC level field in Payment transactions
+    paymentTx.DeliverMax = issued_amount
+    paymentTx.Amount = issued_amount
+
+    const txResult = await testContext.client.autofill(paymentTx)
+
+    assert.strictEqual(txResult.Amount, issued_amount)
+    assert.strictEqual((txResult.Amount as IssuedCurrencyAmount).value, AMOUNT)
+    assert.strictEqual('DeliverMax' in txResult, false)
   })
 
   it('Validate Payment transaction API v2: Payment Transaction: Specify Only DeliverMax field', async function () {
