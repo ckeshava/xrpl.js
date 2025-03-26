@@ -3,7 +3,7 @@ import { assert } from 'chai'
 import type { BaseRequest } from '../../src/models'
 
 // Helper type assertion function (only for TS, no runtime impact)
-function assertType<T>(value: T): void {
+function assertType<T>(_: T): void {
   // No runtime implementation needed
 }
 

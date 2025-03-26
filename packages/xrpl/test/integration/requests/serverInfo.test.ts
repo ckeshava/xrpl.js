@@ -1,11 +1,7 @@
 import { assert } from 'chai'
 import omit from 'lodash/omit'
 
-import {
-  StateAccountingFinal,
-  type ServerInfoRequest,
-  type ServerInfoResponse,
-} from '../../../src'
+import { type ServerInfoRequest, type ServerInfoResponse } from '../../../src'
 import serverUrl from '../serverUrl'
 import {
   setupClient,
@@ -30,9 +26,7 @@ describe('server_info (rippled)', function () {
       const request: ServerInfoRequest = {
         command: 'server_info',
       }
-
       const response = await testContext.client.request(request)
-
       const expected: ServerInfoResponse = {
         id: 0,
         result: {
@@ -59,6 +53,7 @@ describe('server_info (rippled)', function () {
               threads: 1,
             },
             load_factor: 1,
+            network_id: 0,
             peer_disconnects: '0',
             peer_disconnects_resources: '0',
             peers: 0,
@@ -131,7 +126,6 @@ describe('server_info (rippled)', function () {
         'build_version',
         'node_size',
         'initial_sync_duration_us',
-        'network_id',
         'git',
       ]
       assert.deepEqual(
@@ -144,24 +138,29 @@ describe('server_info (rippled)', function () {
       for (const obj of response.result.info.load?.job_types ?? []) {
         assert.equal(typeof obj.job_type, 'string')
       }
-
       // state_accounting
-      const state_accounting: StateAccountingFinal & {
-        [index: string]: unknown
-      } = response.result.info.state_accounting
-      Object.keys(state_accounting).forEach(function (key) {
-        // @ts-expect-error -- non-iterative type
-        assert.equal(typeof state_accounting[key].duration_us, 'string')
-        // @ts-expect-error -- non-iterative type
-        assert.equal(typeof state_accounting[key].transitions, 'string')
+      Object.keys(response.result.info.state_accounting).forEach(function (
+        key,
+      ) {
+        assert.equal(
+          typeof response.result.info.state_accounting[key].duration_us,
+          'string',
+        )
+        assert.equal(
+          typeof response.result.info.state_accounting[key].transitions,
+          'string',
+        )
       })
 
       // validated_ledger
-      const validated_ledger = response.result.info.validated_ledger
-      assert.equal(typeof validated_ledger?.hash, 'string')
-      for (const key of Object.keys(omit(validated_ledger, 'hash'))) {
-        // @ts-expect-error -- non-iterative type
-        assert.equal(typeof validated_ledger[key], 'number')
+      assert.equal(typeof response.result.info.validated_ledger?.hash, 'string')
+      for (const key of Object.keys(
+        omit(response.result.info.validated_ledger, 'hash'),
+      )) {
+        assert.equal(
+          typeof response.result.info.validated_ledger?.[key],
+          'number',
+        )
       }
     },
     TIMEOUT,
