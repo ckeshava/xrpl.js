@@ -14,12 +14,14 @@ async function partialPayment(): Promise<void> {
     usageContext: 'code snippets',
   })
 
+  const currency_code = 'ABC'
+
   // create a trustline to issue an IOU `FOO` and set limit on it.
   const trust_set_tx: TrustSet = {
     TransactionType: 'TrustSet',
     Account: wallet2.classicAddress,
     LimitAmount: {
-      currency: 'FOO',
+      currency: currency_code,
       issuer: wallet1.classicAddress,
       // Value for the new IOU - 10000000000 - is arbitarily chosen.
       value: '10000000000',
@@ -40,7 +42,7 @@ async function partialPayment(): Promise<void> {
     TransactionType: 'Payment',
     Account: wallet1.classicAddress,
     Amount: {
-      currency: 'FOO',
+      currency: currency_code,
       value: issue_quantity,
       issuer: wallet1.classicAddress,
     },
@@ -70,7 +72,7 @@ async function partialPayment(): Promise<void> {
     TransactionType: 'Payment',
     Account: wallet2.classicAddress,
     Amount: {
-      currency: 'FOO',
+      currency: currency_code,
       value: '4000',
       issuer: wallet1.classicAddress,
     },

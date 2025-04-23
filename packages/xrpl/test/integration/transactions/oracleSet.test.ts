@@ -33,7 +33,7 @@ describe('OracleSet', function () {
         PriceDataSeries: [
           {
             PriceData: {
-              BaseAsset: 'XRP',
+              BaseAsset: 'ABC',
               QuoteAsset: 'USD',
               AssetPrice: 740,
               Scale: 3,
@@ -41,7 +41,7 @@ describe('OracleSet', function () {
           },
           {
             PriceData: {
-              BaseAsset: 'XRP',
+              BaseAsset: 'ABC',
               QuoteAsset: 'INR',
               // Upper bound admissible value for AssetPrice field
               // large numeric values necessarily have to use str type in Javascript
@@ -74,7 +74,7 @@ describe('OracleSet', function () {
       assert.equal(oracle.AssetClass, tx.AssetClass)
       assert.equal(oracle.Provider, tx.Provider)
       assert.equal(oracle.PriceDataSeries.length, 2)
-      assert.equal(oracle.PriceDataSeries[0].PriceData.BaseAsset, 'XRP')
+      assert.equal(oracle.PriceDataSeries[0].PriceData.BaseAsset, 'ABC')
       assert.equal(oracle.PriceDataSeries[0].PriceData.QuoteAsset, 'USD')
       assert.equal(oracle.PriceDataSeries[0].PriceData.AssetPrice, '2e4')
       assert.equal(oracle.PriceDataSeries[0].PriceData.Scale, 3)
