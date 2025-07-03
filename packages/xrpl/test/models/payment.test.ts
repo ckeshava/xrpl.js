@@ -44,6 +44,18 @@ describe('Payment', function () {
     assertValid(payment)
   })
 
+  it(`verifies valid Payment with DeliverMax`, function () {
+    const paymentWithDeliverMax = {
+      TransactionType: 'Payment',
+      Account: 'rUn84CUYbNjRoTQ6mSW7BVJPSVJNLb1QLo',
+      Amount: '1234',
+      DeliverMax: '1234',
+      Destination: 'rfkE1aSy9G8Upk4JssnwBxhEv5p4mn2KTy',
+    } as any
+
+    assertValid(paymentWithDeliverMax)
+  })
+
   it(`Verifies memos correctly`, function () {
     payment.Memos = [
       {
