@@ -280,9 +280,12 @@ jobs:
     if: success()
     steps:
       - name: Display the branch name and tag name references
+        env:
+          GITHUB_EVENT_CONTEXT: ${{ toJson(github.event) }}
         run: |
           echo "PR_target_branch=${{ github.event.base_ref }}"
           echo "tag_name=${{ github.event.ref }}"
+          echo "GITHUB_EVENT_CONTEXT=$GITHUB_EVENT_CONTEXT"
 
       - name: Detect if the PR target branch points to main
         id: check-main-branch
