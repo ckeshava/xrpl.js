@@ -1,5 +1,8 @@
 /* eslint-disable no-inline-comments -- Necessary for important note */
 /* eslint-disable max-lines -- There is a lot to export */
+/* eslint-disable prettier/prettier -- Required here to keep formatting in line */
+import type { APIVersion, DEFAULT_API_VERSION } from '../common'
+
 import {
   AccountChannelsRequest,
   AccountChannelsResponse,
@@ -13,6 +16,8 @@ import {
   AccountInfoAccountFlags,
   AccountInfoRequest,
   AccountInfoResponse,
+  AccountInfoV1Response,
+  AccountInfoVersionResponseMap,
   AccountQueueData,
   AccountQueueTransaction,
 } from './accountInfo'
@@ -40,6 +45,8 @@ import {
 import {
   AccountTxRequest,
   AccountTxResponse,
+  AccountTxV1Response,
+  AccountTxVersionResponseMap,
   AccountTxTransaction,
 } from './accountTx'
 import { AMMInfoRequest, AMMInfoResponse } from './ammInfo'
@@ -60,6 +67,14 @@ import {
   DepositAuthorizedRequest,
   DepositAuthorizedResponse,
 } from './depositAuthorized'
+import {
+  FeatureAllRequest,
+  FeatureAllResponse,
+  FeatureOneRequest,
+  FeatureOneResponse,
+  FeatureRequest,
+  FeatureResponse,
+} from './feature'
 import { FeeRequest, FeeResponse } from './fee'
 import {
   GatewayBalance,
@@ -67,16 +82,22 @@ import {
   GatewayBalancesResponse,
 } from './gatewayBalances'
 import {
+  GetAggregatePriceRequest,
+  GetAggregatePriceResponse,
+} from './getAggregatePrice'
+import {
   LedgerBinary,
   LedgerModifiedOfferCreateTransaction,
   LedgerQueueData,
   LedgerRequest,
   LedgerResponse,
+  LedgerV1Response,
   LedgerRequestExpandedTransactionsOnly,
   LedgerResponseExpanded,
   LedgerRequestExpandedAccountsAndTransactions,
   LedgerRequestExpandedAccountsOnly,
   LedgerRequestExpandedTransactionsBinary,
+  LedgerVersionResponseMap,
 } from './ledger'
 import { LedgerClosedRequest, LedgerClosedResponse } from './ledgerClosed'
 import { LedgerCurrentRequest, LedgerCurrentResponse } from './ledgerCurrent'
@@ -96,6 +117,7 @@ import {
   NFTHistoryTransaction,
 } from './nftHistory'
 import { NFTInfoRequest, NFTInfoResponse } from './nftInfo'
+import { NFTsByIssuerRequest, NFTsByIssuerResponse } from './nftsByIssuer'
 import { NFTSellOffersRequest, NFTSellOffersResponse } from './nftSellOffers'
 import { NoRippleCheckRequest, NoRippleCheckResponse } from './norippleCheck'
 import {
@@ -127,10 +149,20 @@ import {
   StateAccountingFinal,
 } from './serverInfo'
 import { ServerStateRequest, ServerStateResponse } from './serverState'
+import {
+  SimulateBinaryRequest,
+  SimulateBinaryResponse,
+  SimulateJsonRequest,
+  SimulateJsonResponse,
+  SimulateRequest,
+  SimulateResponse,
+} from './simulate'
 import { SubmitRequest, SubmitResponse } from './submit'
 import {
   SubmitMultisignedRequest,
   SubmitMultisignedResponse,
+  SubmitMultisignedV1Response,
+  SubmitMultisignedVersionResponseMap,
 } from './submitMultisigned'
 import {
   BooksSnapshot,
@@ -145,18 +177,20 @@ import {
   SubscribeRequest,
   SubscribeResponse,
   TransactionStream,
+  TransactionV1Stream,
   ValidationStream,
 } from './subscribe'
 import {
   TransactionEntryRequest,
   TransactionEntryResponse,
 } from './transactionEntry'
-import { TxRequest, TxResponse } from './tx'
+import { TxRequest, TxResponse, TxV1Response, TxVersionResponseMap } from './tx'
 import {
   UnsubscribeBook,
   UnsubscribeRequest,
   UnsubscribeResponse,
 } from './unsubscribe'
+import { VaultInfoRequest, VaultInfoResponse } from './vaultInfo'
 /**
  * @category Requests
  */
@@ -179,6 +213,7 @@ type Request =
   | LedgerDataRequest
   | LedgerEntryRequest
   // transaction methods
+  | SimulateRequest
   | SubmitRequest
   | SubmitMultisignedRequest
   | TransactionEntryRequest
@@ -199,6 +234,7 @@ type Request =
   | ServerDefinitionsRequest
   | ServerInfoRequest
   | ServerStateRequest
+  | FeatureRequest
   // utility methods
   | PingRequest
   | RandomRequest
@@ -208,33 +244,39 @@ type Request =
   // clio only methods
   | NFTInfoRequest
   | NFTHistoryRequest
+  | NFTsByIssuerRequest
   // AMM methods
   | AMMInfoRequest
+  // Price Oracle methods
+  | GetAggregatePriceRequest
+  // Vault methods
+  | VaultInfoRequest
 
 /**
  * @category Responses
  */
-type Response =
+type Response<Version extends APIVersion = typeof DEFAULT_API_VERSION> =
   // account methods
   | AccountChannelsResponse
   | AccountCurrenciesResponse
-  | AccountInfoResponse
+  | AccountInfoVersionResponseMap<Version>
   | AccountLinesResponse
   | AccountNFTsResponse
   | AccountObjectsResponse
   | AccountOffersResponse
-  | AccountTxResponse
+  | AccountTxVersionResponseMap<Version>
   | GatewayBalancesResponse
   | NoRippleCheckResponse
   // ledger methods
-  | LedgerResponse
+  | LedgerVersionResponseMap<Version>
   | LedgerClosedResponse
   | LedgerCurrentResponse
   | LedgerDataResponse
   | LedgerEntryResponse
   // transaction methods
+  | SimulateResponse
   | SubmitResponse
-  | SubmitMultisignedResponse
+  | SubmitMultisignedVersionResponseMap<Version>
   | TransactionEntryResponse
   | TxResponse
   // path and order book methods
@@ -253,6 +295,7 @@ type Response =
   | ServerDefinitionsResponse
   | ServerInfoResponse
   | ServerStateResponse
+  | FeatureResponse
   // utility methods
   | PingResponse
   | RandomResponse
@@ -262,15 +305,23 @@ type Response =
   // clio only methods
   | NFTInfoResponse
   | NFTHistoryResponse
+  | NFTsByIssuerResponse
   // AMM methods
   | AMMInfoResponse
+  // Price Oracle methods
+  | GetAggregatePriceResponse
+  // Vault methods
+  | VaultInfoResponse
 
-export type RequestResponseMap<T> = T extends AccountChannelsRequest
+export type RequestResponseMap<
+  T,
+  Version extends APIVersion = typeof DEFAULT_API_VERSION,
+> = T extends AccountChannelsRequest
   ? AccountChannelsResponse
   : T extends AccountCurrenciesRequest
   ? AccountCurrenciesResponse
   : T extends AccountInfoRequest
-  ? AccountInfoResponse
+  ? AccountInfoVersionResponseMap<Version>
   : T extends AccountLinesRequest
   ? AccountLinesResponse
   : T extends AccountNFTsRequest
@@ -280,11 +331,13 @@ export type RequestResponseMap<T> = T extends AccountChannelsRequest
   : T extends AccountOffersRequest
   ? AccountOffersResponse
   : T extends AccountTxRequest
-  ? AccountTxResponse
+  ? AccountTxVersionResponseMap<Version>
   : T extends AMMInfoRequest
   ? AMMInfoResponse
   : T extends GatewayBalancesRequest
   ? GatewayBalancesResponse
+  : T extends GetAggregatePriceRequest
+  ? GetAggregatePriceResponse
   : T extends NoRippleCheckRequest
   ? NoRippleCheckResponse
   : // NOTE: The order of these LedgerRequest types is important
@@ -344,15 +397,15 @@ export type RequestResponseMap<T> = T extends AccountChannelsRequest
   // then we'd get the wrong response type, LedgerResponse, instead of
   // LedgerResponseExpanded.
   T extends LedgerRequestExpandedTransactionsBinary
-  ? LedgerResponse
+  ? LedgerVersionResponseMap<Version>
   : T extends LedgerRequestExpandedAccountsAndTransactions
-  ? LedgerResponseExpanded
+  ? LedgerResponseExpanded<Version>
   : T extends LedgerRequestExpandedTransactionsOnly
-  ? LedgerResponseExpanded
+  ? LedgerResponseExpanded<Version>
   : T extends LedgerRequestExpandedAccountsOnly
-  ? LedgerResponseExpanded
+  ? LedgerResponseExpanded<Version>
   : T extends LedgerRequest
-  ? LedgerResponse
+  ? LedgerVersionResponseMap<Version>
   : T extends LedgerClosedRequest
   ? LedgerClosedResponse
   : T extends LedgerCurrentRequest
@@ -361,14 +414,20 @@ export type RequestResponseMap<T> = T extends AccountChannelsRequest
   ? LedgerDataResponse
   : T extends LedgerEntryRequest
   ? LedgerEntryResponse
+  : T extends SimulateBinaryRequest
+  ? SimulateBinaryResponse
+  : T extends SimulateJsonRequest
+  ? SimulateJsonResponse
+  : T extends SimulateRequest
+  ? SimulateJsonResponse
   : T extends SubmitRequest
   ? SubmitResponse
   : T extends SubmitMultisignedRequest
-  ? SubmitMultisignedResponse
+  ? SubmitMultisignedVersionResponseMap<Version>
   : T extends TransactionEntryRequest
   ? TransactionEntryResponse
   : T extends TxRequest
-  ? TxResponse
+  ? TxVersionResponseMap<Version>
   : T extends BookOffersRequest
   ? BookOffersResponse
   : T extends DepositAuthorizedRequest
@@ -393,6 +452,10 @@ export type RequestResponseMap<T> = T extends AccountChannelsRequest
   ? ServerStateResponse
   : T extends ServerDefinitionsRequest
   ? ServerDefinitionsResponse
+  : T extends FeatureAllRequest
+  ? FeatureAllResponse
+  : T extends FeatureOneRequest
+  ? FeatureOneResponse
   : T extends PingRequest
   ? PingResponse
   : T extends RandomRequest
@@ -403,22 +466,31 @@ export type RequestResponseMap<T> = T extends AccountChannelsRequest
   ? NFTSellOffersResponse
   : T extends NFTInfoRequest
   ? NFTInfoResponse
+  : T extends NFTsByIssuerRequest
+  ? NFTsByIssuerResponse
   : T extends NFTHistoryRequest
   ? NFTHistoryResponse
-  : Response
+  : T extends VaultInfoRequest
+  ? VaultInfoResponse
+  : Response<Version>
 
 export type MarkerRequest = Request & {
   limit?: number
   marker?: unknown
 }
 
-export type MarkerResponse = Response & {
+export type MarkerResponse<
+  Version extends APIVersion = typeof DEFAULT_API_VERSION,
+> = Response<Version> & {
   result: {
     marker?: unknown
   }
 }
 
-export type RequestAllResponseMap<T> = T extends AccountChannelsRequest
+export type RequestAllResponseMap<
+  T,
+  Version extends APIVersion = typeof DEFAULT_API_VERSION,
+> = T extends AccountChannelsRequest
   ? AccountChannelsResponse
   : T extends AccountLinesRequest
   ? AccountLinesResponse
@@ -427,14 +499,12 @@ export type RequestAllResponseMap<T> = T extends AccountChannelsRequest
   : T extends AccountOffersRequest
   ? AccountOffersResponse
   : T extends AccountTxRequest
-  ? AccountTxResponse
+  ? AccountTxVersionResponseMap<Version>
   : T extends LedgerDataRequest
   ? LedgerDataResponse
-  : T extends AccountTxRequest
-  ? AccountTxResponse
   : T extends BookOffersRequest
   ? BookOffersResponse
-  : MarkerResponse
+  : MarkerResponse<Version>
 
 export {
   // Allow users to define their own requests and responses.  This is useful for releasing experimental versions
@@ -452,6 +522,7 @@ export {
   AccountInfoAccountFlags,
   AccountInfoRequest,
   AccountInfoResponse,
+  AccountInfoV1Response,
   AccountQueueData,
   AccountQueueTransaction,
   AccountLinesRequest,
@@ -469,15 +540,19 @@ export {
   AccountOffersResponse,
   AccountTxRequest,
   AccountTxResponse,
+  AccountTxV1Response,
   AccountTxTransaction,
   GatewayBalance,
   GatewayBalancesRequest,
   GatewayBalancesResponse,
+  GetAggregatePriceRequest,
+  GetAggregatePriceResponse,
   NoRippleCheckRequest,
   NoRippleCheckResponse,
   // ledger methods
   LedgerRequest,
   LedgerResponse,
+  LedgerV1Response,
   LedgerQueueData,
   LedgerBinary,
   LedgerModifiedOfferCreateTransaction,
@@ -493,14 +568,18 @@ export {
   LedgerEntryRequest,
   LedgerEntryResponse,
   // transaction methods with types
+  SimulateRequest,
+  SimulateResponse,
   SubmitRequest,
   SubmitResponse,
   SubmitMultisignedRequest,
   SubmitMultisignedResponse,
+  SubmitMultisignedV1Response,
   TransactionEntryRequest,
   TransactionEntryResponse,
   TxRequest,
   TxResponse,
+  TxV1Response,
   // path and order book methods with types
   BookOffersRequest,
   BookOffer,
@@ -531,6 +610,7 @@ export {
   LedgerStreamResponse,
   ValidationStream,
   TransactionStream,
+  TransactionV1Stream,
   PathFindStream,
   PeerStatusStream,
   OrderBookStream,
@@ -553,6 +633,8 @@ export {
   ServerState,
   StateAccountingFinal,
   StateAccounting,
+  FeatureRequest,
+  FeatureResponse,
   // utility methods
   PingRequest,
   PingResponse,
@@ -570,7 +652,12 @@ export {
   NFTHistoryRequest,
   NFTHistoryResponse,
   NFTHistoryTransaction,
+  NFTsByIssuerRequest,
+  NFTsByIssuerResponse,
   // AMM methods
   AMMInfoRequest,
   AMMInfoResponse,
+  // Vault methods
+  VaultInfoRequest,
+  VaultInfoResponse,
 }

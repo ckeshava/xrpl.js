@@ -6,7 +6,9 @@ import {
   EscrowFinish,
   Payment,
   Transaction,
+  Batch,
 } from '../../src'
+import { ValidationError } from '../../src/errors'
 import rippled from '../fixtures/rippled'
 import {
   setupClient,
@@ -19,10 +21,11 @@ const NetworkID = 1025
 const Fee = '10'
 const Sequence = 1432
 const LastLedgerSequence = 2908734
-const HOOKS_TESTNET_ID = 21338
 
 describe('client.autofill', function () {
   let testContext: XrplTestContext
+  const AMOUNT = '1234'
+  let paymentTx: Payment
 
   async function setupMockRippledVersionAndID(
     buildVersion: string,
@@ -41,10 +44,65 @@ describe('client.autofill', function () {
     await testContext.client.connect()
   }
 
-  beforeEach(async () => {
+  beforeAll(async () => {
     testContext = await setupClient()
   })
-  afterEach(async () => teardownClient(testContext))
+  afterAll(async () => teardownClient(testContext))
+
+  beforeEach(async () => {
+    paymentTx = {
+      TransactionType: 'Payment',
+      Account: 'rUn84CUYbNjRoTQ6mSW7BVJPSVJNLb1QLo',
+      Amount: AMOUNT,
+      Destination: 'rfkE1aSy9G8Upk4JssnwBxhEv5p4mn2KTy',
+      DestinationTag: 1,
+      Fee: '12',
+      Flags: 2147483648,
+      LastLedgerSequence: 65953073,
+      Sequence: 65923914,
+      SigningPubKey:
+        '02F9E33F16DF9507705EC954E3F94EB5F10D1FC4A354606DBE6297DBB1096FE654',
+      TxnSignature:
+        '3045022100E3FAE0EDEC3D6A8FF6D81BC9CF8288A61B7EEDE8071E90FF9314CB4621058D10022043545CF631706D700CEE65A1DB83EFDD185413808292D9D90F14D87D3DC2D8CB',
+      InvoiceID:
+        '6F1DFD1D0FE8A32E40E1F2C05CF1C15545BAB56B617F9C6C2D63A6B704BEF59B',
+      Paths: [
+        [{ currency: 'BTC', issuer: 'r9vbV3EHvXWjSkeQ6CAcYVPGeq7TuiXY2X' }],
+      ],
+      SendMax: '100000000',
+    }
+  })
+
+  it('Validate Payment transaction API v2: Payment Transaction: Specify Only Amount field', async function () {
+    const txResult = await testContext.client.autofill(paymentTx)
+
+    assert.strictEqual(txResult.Amount, AMOUNT)
+  })
+
+  it('Validate Payment transaction API v2: Payment Transaction: Specify Only DeliverMax field', async function () {
+    paymentTx.DeliverMax = paymentTx.Amount
+    // @ts-expect-error -- DeliverMax is a non-protocol, RPC level field in Payment transactions
+    delete paymentTx.Amount
+    const txResult = await testContext.client.autofill(paymentTx)
+
+    assert.strictEqual(txResult.Amount, AMOUNT)
+  })
+
+  it('Validate Payment transaction API v2: Payment Transaction: identical DeliverMax and Amount fields', async function () {
+    paymentTx.DeliverMax = paymentTx.Amount
+
+    const txResult = await testContext.client.autofill(paymentTx)
+
+    assert.strictEqual(txResult.Amount, AMOUNT)
+    assert.strictEqual('DeliverMax' in txResult, false)
+  })
+
+  it('Validate Payment transaction API v2: Payment Transaction: differing DeliverMax and Amount fields', async function () {
+    paymentTx.DeliverMax = '6789'
+    paymentTx.Amount = '1234'
+
+    await assertRejects(testContext.client.autofill(paymentTx), ValidationError)
+  })
 
   it('should not autofill if fields are present', async function () {
     const tx: Transaction = {
@@ -139,26 +197,6 @@ describe('client.autofill', function () {
     const txResult = await testContext.client.autofill(tx)
 
     assert.strictEqual(txResult.NetworkID, undefined)
-  })
-
-  // Hooks Testnet requires networkID in transaction regardless of version.
-  // More context: https://github.com/XRPLF/rippled/pull/4370
-  it('overrides network ID for hooks testnet', async function () {
-    await setupMockRippledVersionAndID('1.10.1', HOOKS_TESTNET_ID)
-    const tx: Payment = {
-      TransactionType: 'Payment',
-      Account: 'XVLhHMPHU98es4dbozjVtdWzVrDjtV18pX8yuPT7y4xaEHi',
-      Amount: '1234',
-      Destination: 'X7AcgcsBL6XDcUb289X4mJ8djcdyKaB5hJDWMArnXr61cqZ',
-      Fee,
-      Sequence,
-      LastLedgerSequence,
-    }
-    testContext.mockRippled!.addResponse('ledger', rippled.ledger.normal)
-
-    const txResult = await testContext.client.autofill(tx)
-
-    assert.strictEqual(txResult.NetworkID, HOOKS_TESTNET_ID)
   })
 
   it('converts Account & Destination X-address to their classic address', async function () {
@@ -334,7 +372,7 @@ describe('client.autofill', function () {
       )
       const txResult = await testContext.client.autofill(tx, 4)
 
-      assert.strictEqual(txResult.Fee, '459')
+      assert.strictEqual(txResult.Fee, '447')
     })
   })
 
@@ -394,5 +432,90 @@ describe('client.autofill', function () {
     assert.strictEqual(txResult.Fee, '12')
     assert.strictEqual(txResult.Sequence, 23)
     assert.strictEqual(txResult.LastLedgerSequence, 9038234)
+  })
+
+  it('should autofill Batch transaction with single account', async function () {
+    const sender = 'rGWrZyQqhTp9Xu7G5Pkayo7bXjH4k4QYpf'
+    const tx: Batch = {
+      TransactionType: 'Batch',
+      Account: sender,
+      RawTransactions: [
+        {
+          RawTransaction: {
+            TransactionType: 'DepositPreauth',
+            Flags: 0x40000000,
+            Account: sender,
+            Authorize: 'rpZc4mVfWUif9CRoHRKKcmhu1nx2xktxBo',
+          },
+        },
+        {
+          RawTransaction: {
+            TransactionType: 'DepositPreauth',
+            Flags: 0x40000000,
+            Account: sender,
+            Authorize: 'rf1BiGeXwwQoi8Z2ueFYTEXSwuJYfV2Jpn',
+          },
+        },
+      ],
+      Fee,
+      Sequence,
+      LastLedgerSequence,
+    }
+    testContext.mockRippled!.addResponse('account_info', {
+      status: 'success',
+      type: 'response',
+      result: {
+        account_data: {
+          Sequence: 23,
+        },
+      },
+    })
+    const txResult = await testContext.client.autofill(tx)
+    txResult.RawTransactions.forEach((rawTxOuter, index) => {
+      const rawTx = rawTxOuter.RawTransaction
+      assert.strictEqual(rawTx.Sequence, 23 + index + 1)
+    })
+  })
+
+  it('should autofill Batch transaction with multiple accounts', async function () {
+    const sender1 = 'rGWrZyQqhTp9Xu7G5Pkayo7bXjH4k4QYpf'
+    const sender2 = 'rf1BiGeXwwQoi8Z2ueFYTEXSwuJYfV2Jpn'
+    const tx: Transaction = {
+      TransactionType: 'Batch',
+      Account: sender1,
+      RawTransactions: [
+        {
+          RawTransaction: {
+            TransactionType: 'DepositPreauth',
+            Flags: 0x40000000,
+            Account: sender1,
+            Authorize: 'rpZc4mVfWUif9CRoHRKKcmhu1nx2xktxBo',
+          },
+        },
+        {
+          RawTransaction: {
+            TransactionType: 'DepositPreauth',
+            Flags: 0x40000000,
+            Account: sender2,
+            Authorize: 'rpZc4mVfWUif9CRoHRKKcmhu1nx2xktxBo',
+          },
+        },
+      ],
+      Fee,
+      Sequence,
+      LastLedgerSequence,
+    }
+    testContext.mockRippled!.addResponse('account_info', {
+      status: 'success',
+      type: 'response',
+      result: {
+        account_data: {
+          Sequence: 23,
+        },
+      },
+    })
+    const txResult = await testContext.client.autofill(tx)
+    assert.strictEqual(txResult.RawTransactions[0].RawTransaction.Sequence, 24)
+    assert.strictEqual(txResult.RawTransactions[1].RawTransaction.Sequence, 23)
   })
 })

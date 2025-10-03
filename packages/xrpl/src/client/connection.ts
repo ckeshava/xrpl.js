@@ -11,7 +11,7 @@ import {
   ConnectionError,
   XrplError,
 } from '../errors'
-import type { RequestResponseMap } from '../models'
+import type { APIVersion, RequestResponseMap } from '../models'
 import { BaseRequest } from '../models/methods/baseMethod'
 
 import ConnectionManager from './ConnectionManager'
@@ -267,6 +267,7 @@ export class Connection extends EventEmitter {
 
   /**
    * Disconnect the websocket, then connect again.
+   *
    */
   public async reconnect(): Promise<void> {
     /*
@@ -287,10 +288,10 @@ export class Connection extends EventEmitter {
    * @returns The response from the rippled server.
    * @throws NotConnectedError if the Connection isn't connected to a server.
    */
-  public async request<R extends BaseRequest, T = RequestResponseMap<R>>(
-    request: R,
-    timeout?: number,
-  ): Promise<T> {
+  public async request<
+    R extends BaseRequest,
+    T = RequestResponseMap<R, APIVersion>,
+  >(request: R, timeout?: number): Promise<T> {
     if (!this.shouldBeConnected || this.ws == null) {
       throw new NotConnectedError(JSON.stringify(request), request)
     }
@@ -300,7 +301,18 @@ export class Connection extends EventEmitter {
     >(request, timeout ?? this.config.timeout)
     this.trace('send', message)
     websocketSendAsync(this.ws, message).catch((error) => {
-      this.requestManager.reject(id, error)
+      try {
+        this.requestManager.reject(id, error)
+      } catch (err) {
+        if (err instanceof XrplError) {
+          this.trace(
+            'send',
+            `send errored after connection was closed: ${err.toString()}`,
+          )
+        } else {
+          this.trace('send', String(err))
+        }
+      }
     })
 
     return responsePromise
@@ -348,7 +360,6 @@ export class Connection extends EventEmitter {
       try {
         this.requestManager.handleResponse(data)
       } catch (error) {
-        // eslint-disable-next-line max-depth -- okay here
         if (error instanceof Error) {
           this.emit('error', 'badMessage', error.message, message)
         } else {
@@ -468,6 +479,7 @@ export class Connection extends EventEmitter {
 
   /**
    * Starts a heartbeat to check the connection with the server.
+   *
    */
   private startHeartbeatInterval(): void {
     this.clearHeartbeatInterval()

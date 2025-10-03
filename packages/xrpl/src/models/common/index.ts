@@ -1,3 +1,7 @@
+export const RIPPLED_API_V1 = 1
+export const RIPPLED_API_V2 = 2
+export const DEFAULT_API_VERSION = RIPPLED_API_V2
+export type APIVersion = typeof RIPPLED_API_V1 | typeof RIPPLED_API_V2
 export type LedgerIndex = number | ('validated' | 'closed' | 'current')
 
 export interface XRP {
@@ -10,13 +14,25 @@ export interface IssuedCurrency {
   issuer: string
 }
 
-export type Currency = IssuedCurrency | XRP
+export interface MPTCurrency {
+  mpt_issuance_id: string
+}
+
+export type Currency = IssuedCurrency | MPTCurrency | XRP
 
 export interface IssuedCurrencyAmount extends IssuedCurrency {
   value: string
 }
 
+export interface MPTAmount {
+  mpt_issuance_id: string
+  value: string
+}
+
+// TODO: add MPTAmount to Amount once MPTv2 is released
 export type Amount = IssuedCurrencyAmount | string
+
+export type ClawbackAmount = IssuedCurrencyAmount | MPTAmount
 
 export interface Balance {
   currency: string
@@ -105,6 +121,10 @@ export interface ResponseOnlyTxInfo {
    */
   ledger_index?: number
   /**
+   * The hash of the ledger included this transaction.
+   */
+  ledger_hash?: string
+  /**
    * @deprecated Alias for ledger_index.
    */
   inLedger?: number
@@ -149,9 +169,76 @@ export interface AuthAccount {
   }
 }
 
+export interface AuthorizeCredential {
+  Credential: {
+    /** The issuer of the credential. */
+    Issuer: string
+
+    /** A hex-encoded value to identify the type of credential from the issuer. */
+    CredentialType: string
+  }
+}
+
 export interface XChainBridge {
   LockingChainDoor: string
   LockingChainIssue: Currency
   IssuingChainDoor: string
   IssuingChainIssue: Currency
+}
+
+/**
+ * A PriceData object represents the price information for a token pair.
+ *
+ */
+export interface PriceData {
+  PriceData: {
+    /**
+     * The primary asset in a trading pair. Any valid identifier, such as a stock symbol, bond CUSIP, or currency code is allowed.
+     * For example, in the BTC/USD pair, BTC is the base asset; in 912810RR9/BTC, 912810RR9 is the base asset.
+     */
+    BaseAsset: string
+
+    /**
+     * The quote asset in a trading pair. The quote asset denotes the price of one unit of the base asset. For example, in the
+     * BTC/USD pair,BTC is the base asset; in 912810RR9/BTC, 912810RR9 is the base asset.
+     */
+    QuoteAsset: string
+
+    /**
+     * The asset price after applying the Scale precision level. It's not included if the last update transaction didn't include
+     * the BaseAsset/QuoteAsset pair.
+     */
+    AssetPrice?: number | string
+
+    /**
+     * The scaling factor to apply to an asset price. For example, if Scale is 6 and original price is 0.155, then the scaled
+     * price is 155000. Valid scale ranges are 0-10. It's not included if the last update transaction didn't include the
+     * BaseAsset/QuoteAsset pair.
+     */
+    Scale?: number
+  }
+}
+
+/**
+ * MPTokenMetadata object as per the XLS-89d standard.
+ */
+export interface MPTokenMetadata {
+  ticker: string
+  name: string
+  icon: string
+  asset_class: string
+  issuer_name: string
+  desc?: string
+  asset_subclass?: string
+  urls?: MPTokenMetadataUrl[]
+  additional_info?: string
+}
+
+/**
+ * MPTokenMetadataUrl object as per the XLS-89d standard.
+ */
+export interface MPTokenMetadataUrl {
+  url: string
+  type: string
+  title: string
 }

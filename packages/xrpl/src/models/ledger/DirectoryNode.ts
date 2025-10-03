@@ -1,4 +1,4 @@
-import { BaseLedgerEntry, MissingPreviousTxnID } from './BaseLedgerEntry'
+import { BaseLedgerEntry, HasOptionalPreviousTxnID } from './BaseLedgerEntry'
 
 /**
  * The DirectoryNode object type provides a list of links to other objects in
@@ -8,7 +8,7 @@ import { BaseLedgerEntry, MissingPreviousTxnID } from './BaseLedgerEntry'
  */
 export default interface DirectoryNode
   extends BaseLedgerEntry,
-    MissingPreviousTxnID {
+    HasOptionalPreviousTxnID {
   LedgerEntryType: 'DirectoryNode'
   /**
    * A bit-map of boolean flags enabled for this directory. Currently, the
@@ -45,4 +45,7 @@ export default interface DirectoryNode
   TakerGetsCurrency?: string
   /** The issuer of the TakerGets amount from the offers in this directory. */
   TakerGetsIssuer?: string
+
+  /** The domain that the offer directory is a part of. */
+  DomainID?: string
 }

@@ -9,7 +9,12 @@ import {
   ValidationError,
   XrplError,
 } from '../errors'
-import type { LedgerIndex, Balance } from '../models/common'
+import {
+  APIVersion,
+  LedgerIndex,
+  Balance,
+  DEFAULT_API_VERSION,
+} from '../models/common'
 import {
   Request,
   // account methods
@@ -35,14 +40,19 @@ import type {
   MarkerRequest,
   MarkerResponse,
   SubmitResponse,
+  SimulateRequest,
 } from '../models/methods'
 import type { BookOffer, BookOfferCurrency } from '../models/methods/bookOffers'
+import {
+  SimulateBinaryResponse,
+  SimulateJsonResponse,
+} from '../models/methods/simulate'
 import type {
   EventTypes,
   OnEventToListenerMap,
 } from '../models/methods/subscribe'
 import type { SubmittableTransaction } from '../models/transactions'
-import { setTransactionFlagsToNumber } from '../models/utils/flags'
+import { convertTxFlagsToNumber } from '../models/utils/flags'
 import {
   ensureClassicAddress,
   submitRequest,
@@ -53,10 +63,12 @@ import {
 import {
   setValidAddresses,
   setNextValidSequenceNumber,
-  calculateFeePerTransactionType,
   setLatestValidatedLedgerSequence,
   checkAccountDeleteBlockers,
   txNeedsNetworkID,
+  autofillBatchTxn,
+  handleDeliverMax,
+  getTransactionFee,
 } from '../sugar/autofill'
 import { formatBalances } from '../sugar/balances'
 import {
@@ -120,16 +132,16 @@ type RequestNextPageType =
 type RequestNextPageReturnMap<T> = T extends AccountChannelsRequest
   ? AccountChannelsResponse
   : T extends AccountLinesRequest
-  ? AccountLinesResponse
-  : T extends AccountObjectsRequest
-  ? AccountObjectsResponse
-  : T extends AccountOffersRequest
-  ? AccountOffersResponse
-  : T extends AccountTxRequest
-  ? AccountTxResponse
-  : T extends LedgerDataRequest
-  ? LedgerDataResponse
-  : never
+    ? AccountLinesResponse
+    : T extends AccountObjectsRequest
+      ? AccountObjectsResponse
+      : T extends AccountOffersRequest
+        ? AccountOffersResponse
+        : T extends AccountTxRequest
+          ? AccountTxResponse
+          : T extends LedgerDataRequest
+            ? LedgerDataResponse
+            : never
 
 /**
  * Get the response key / property name that contains the listed data for a
@@ -214,6 +226,12 @@ class Client extends EventEmitter<EventTypes> {
   public buildVersion: string | undefined
 
   /**
+   * API Version used by the server this client is connected to
+   *
+   */
+  public apiVersion: APIVersion = DEFAULT_API_VERSION
+
+  /**
    * Creates a new Client with a websocket connection to a rippled server.
    *
    * @param server - URL of the server to connect to.
@@ -226,7 +244,7 @@ class Client extends EventEmitter<EventTypes> {
    * const client = new Client('wss://s.altnet.rippletest.net:51233')
    * ```
    */
-  // eslint-disable-next-line max-lines-per-function -- okay because we have to set up all the connection handlers
+  /* eslint-disable max-lines-per-function -- the constructor requires more lines to implement the logic */
   public constructor(server: string, options: ClientOptions = {}) {
     super()
     if (typeof server !== 'string' || !/wss?(?:\+unix)?:\/\//u.exec(server)) {
@@ -290,6 +308,7 @@ class Client extends EventEmitter<EventTypes> {
       this.emit('path_find', path)
     })
   }
+  /* eslint-enable max-lines-per-function */
 
   /**
    * Get the url that the client is connected to.
@@ -306,7 +325,6 @@ class Client extends EventEmitter<EventTypes> {
    * additional request body parameters.
    *
    * @category Network
-   *
    * @param req - Request to send to the server.
    * @returns The response from the server.
    *
@@ -319,16 +337,20 @@ class Client extends EventEmitter<EventTypes> {
    * console.log(response)
    * ```
    */
-  public async request<R extends Request, T = RequestResponseMap<R>>(
-    req: R,
-  ): Promise<T> {
-    const response = await this.connection.request<R, T>({
+  public async request<
+    R extends Request,
+    V extends APIVersion = typeof DEFAULT_API_VERSION,
+    T = RequestResponseMap<R, V>,
+  >(req: R): Promise<T> {
+    const request = {
       ...req,
-      account: req.account
-        ? // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- Must be string
-          ensureClassicAddress(req.account as string)
-        : undefined,
-    })
+      account:
+        typeof req.account === 'string'
+          ? ensureClassicAddress(req.account)
+          : undefined,
+      api_version: req.api_version ?? this.apiVersion,
+    }
+    const response = await this.connection.request<R, T>(request)
 
     // mutates `response` to add warnings
     handlePartialPayment(req.command, response)
@@ -437,9 +459,10 @@ class Client extends EventEmitter<EventTypes> {
    * const allResponses = await client.requestAll({ command: 'transaction_data' });
    * console.log(allResponses);
    */
+
   public async requestAll<
     T extends MarkerRequest,
-    U = RequestAllResponseMap<T>,
+    U = RequestAllResponseMap<T, APIVersion>,
   >(request: T, collect?: string): Promise<U[]> {
     /*
      * The data under collection is keyed based on the command. Fail if command
@@ -453,7 +476,7 @@ class Client extends EventEmitter<EventTypes> {
      * If limit is not provided, fetches all data over multiple requests.
      * NOTE: This may return much more than needed. Set limit when possible.
      */
-    const countTo: number = request.limit == null ? Infinity : request.limit
+    const countTo: number = request.limit ?? Infinity
     let count = 0
     let marker: unknown = request.marker
     const results: U[] = []
@@ -467,7 +490,7 @@ class Client extends EventEmitter<EventTypes> {
       // eslint-disable-next-line no-await-in-loop -- Necessary for this, it really has to wait
       const singleResponse = await this.connection.request(repeatProps)
       // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- Should be true
-      const singleResult = (singleResponse as MarkerResponse).result
+      const singleResult = (singleResponse as MarkerResponse<APIVersion>).result
       if (!(collectKey in singleResult)) {
         throw new XrplError(`${collectKey} not in result`)
       }
@@ -638,6 +661,7 @@ class Client extends EventEmitter<EventTypes> {
    * @param signersCount - The expected number of signers for this transaction.
    * Only used for multisigned transactions.
    * @returns The autofilled transaction.
+   * @throws ValidationError If Amount and DeliverMax fields are not identical in a Payment Transaction
    */
   public async autofill<T extends SubmittableTransaction>(
     transaction: T,
@@ -646,18 +670,15 @@ class Client extends EventEmitter<EventTypes> {
     const tx = { ...transaction }
 
     setValidAddresses(tx)
-
-    setTransactionFlagsToNumber(tx)
+    tx.Flags = convertTxFlagsToNumber(tx)
 
     const promises: Array<Promise<void>> = []
-    if (tx.NetworkID == null) {
-      tx.NetworkID = txNeedsNetworkID(this) ? this.networkID : undefined
-    }
+    tx.NetworkID ??= txNeedsNetworkID(this) ? this.networkID : undefined
     if (tx.Sequence == null) {
       promises.push(setNextValidSequenceNumber(this, tx))
     }
     if (tx.Fee == null) {
-      promises.push(calculateFeePerTransactionType(this, tx, signersCount))
+      promises.push(getTransactionFee(this, tx, signersCount))
     }
     if (tx.LastLedgerSequence == null) {
       promises.push(setLatestValidatedLedgerSequence(this, tx))
@@ -665,8 +686,49 @@ class Client extends EventEmitter<EventTypes> {
     if (tx.TransactionType === 'AccountDelete') {
       promises.push(checkAccountDeleteBlockers(this, tx))
     }
+    if (tx.TransactionType === 'Batch') {
+      promises.push(autofillBatchTxn(this, tx))
+    }
+    if (tx.TransactionType === 'Payment' && tx.DeliverMax != null) {
+      handleDeliverMax(tx)
+    }
 
     return Promise.all(promises).then(() => tx)
+  }
+
+  /**
+   * Simulates an unsigned transaction.
+   * Steps performed on a transaction:
+   *    1. Autofill.
+   *    2. Sign & Encode.
+   *    3. Submit.
+   *
+   * @category Core
+   *
+   * @param transaction - A transaction to autofill, sign & encode, and submit.
+   * @param opts - (Optional) Options used to sign and submit a transaction.
+   * @param opts.binary - If true, return the metadata in a binary encoding.
+   *
+   * @returns A promise that contains SimulateResponse.
+   * @throws RippledError if the simulate request fails.
+   */
+
+  public async simulate<Binary extends boolean = false>(
+    transaction: SubmittableTransaction | string,
+    opts?: {
+      // If true, return the binary-encoded representation of the results.
+      binary?: Binary
+    },
+  ): Promise<
+    Binary extends true ? SimulateBinaryResponse : SimulateJsonResponse
+  > {
+    // send request
+    const binary = opts?.binary ?? false
+    const request: SimulateRequest =
+      typeof transaction === 'string'
+        ? { command: 'simulate', tx_blob: transaction, binary }
+        : { command: 'simulate', tx_json: transaction, binary }
+    return this.request(request)
   }
 
   /**
@@ -758,7 +820,7 @@ class Client extends EventEmitter<EventTypes> {
    * Under the hood, `submit` will call `client.autofill` by default, and because we've passed in a `Wallet` it
    * Will also sign the transaction for us before submitting the signed transaction binary blob to the ledger.
    *
-   * This is similar to `submitAndWait` which does all of the above, but also waits to see if the transaction has been validated.
+   * This is similar to `submit`, which does all of the above, but also waits to see if the transaction has been validated.
    * @param transaction - A transaction to autofill, sign & encode, and submit.
    * @param opts - (Optional) Options used to sign and submit a transaction.
    * @param opts.autofill - If true, autofill a transaction.
@@ -799,6 +861,12 @@ class Client extends EventEmitter<EventTypes> {
 
     const response = await submitRequest(this, signedTx, opts?.failHard)
 
+    if (response.result.engine_result.startsWith('tem')) {
+      throw new XrplError(
+        `Transaction failed, ${response.result.engine_result}: ${response.result.engine_result_message}`,
+      )
+    }
+
     const txHash = hashes.hashSignedTx(signedTx)
     return waitForFinalTransactionOutcome(
       this,
@@ -814,6 +882,7 @@ class Client extends EventEmitter<EventTypes> {
    * @param transaction - A {@link Transaction} in JSON format
    * @param signersCount - The expected number of signers for this transaction.
    * Only used for multisigned transactions.
+   * @returns The prepared transaction with required fields autofilled.
    * @deprecated Use autofill instead, provided for users familiar with v1
    */
   public async prepareTransaction(
@@ -909,7 +978,7 @@ class Client extends EventEmitter<EventTypes> {
    * @param options.limit - Limit number of balances to return.
    * @returns An array of XRP/non-XRP balances for the given account.
    */
-  // eslint-disable-next-line max-lines-per-function -- Longer definition is required for end users to see the definition.
+  /* eslint-disable max-lines-per-function -- getBalances requires more lines to implement logic */
   public async getBalances(
     address: string,
     options: {
@@ -957,6 +1026,7 @@ class Client extends EventEmitter<EventTypes> {
     )
     return balances.slice(0, options.limit)
   }
+  /* eslint-enable max-lines-per-function */
 
   /**
    * Fetch orderbook (buy/sell orders) between two currency pairs. This checks both sides of the orderbook

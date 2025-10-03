@@ -1,6 +1,6 @@
 {
   "name": "ripple-binary-codec",
-  "version": "2.0.0",
+  "version": "2.5.0",
   "description": "XRP Ledger binary codec",
   "files": [
     "dist/*",
@@ -11,7 +11,7 @@
     "test": "test"
   },
   "dependencies": {
-    "@xrplf/isomorphic": "^1.0.0",
+    "@xrplf/isomorphic": "^1.0.1",
     "bignumber.js": "^9.0.0",
     "ripple-address-codec": "^5.0.0"
   },
@@ -21,7 +21,8 @@
     "prepublishOnly": "npm test",
     "test": "npm run build && jest --verbose false --silent=false ./test/*.test.ts",
     "test:browser": "npm run build && karma start ./karma.config.js",
-    "lint": "eslint . --ext .ts --ext .test.js"
+    "lint": "eslint . --max-warnings 0",
+    "generateDefinitions": "node ./tools/generateDefinitions.js"
   },
   "keywords": [
     "ripple",
@@ -41,6 +42,6 @@
   "readmeFilename": "README.md",
   "prettier": "@xrplf/prettier-config",
   "engines": {
-    "node": ">= 16"
+    "node": ">= 18"
   }
 }

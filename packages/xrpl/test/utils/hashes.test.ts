@@ -7,6 +7,7 @@ import { encode } from 'ripple-binary-codec'
 import {
   EnableAmendment,
   OfferCreate,
+  Payment,
   Transaction,
   ValidationError,
 } from '../../src'
@@ -37,7 +38,7 @@ function createLedgerTest(ledgerIndex: number): void {
     `fixtures/rippled/ledgerFull${ledgerIndex}.json`,
   )
 
-  // eslint-disable-next-line node/no-sync -- must be sync version when not in async method
+  // eslint-disable-next-line n/no-sync -- must be sync version when not in async method
   const ledgerRaw = fs.readFileSync(fileLocation, { encoding: 'utf8' })
   const ledgerJSON = JSON.parse(ledgerRaw)
 
@@ -209,6 +210,24 @@ describe('Hashes', function () {
     assert.equal(
       hashSignedTx(transaction),
       'CA4562711E4679FE9317DD767871E90A404C7A8B84FAFD35EC2CF0231F1F6DAF',
+    )
+  })
+
+  it('hashSignedTx - batch transaction', function () {
+    const transaction: Payment = {
+      Account: 'rPMh7Pi9ct699iZUTWaytJUoHcJ7cgyziK',
+      Amount: '1000000',
+      Destination: 'rJCxK2hX9tDMzbnn3cg1GU2g19Kfmhzxkp',
+      Fee: '0',
+      Flags: 0x40000000,
+      Sequence: 470,
+      SigningPubKey: '',
+      TransactionType: 'Payment',
+    }
+
+    assert.equal(
+      hashSignedTx(transaction),
+      '9EDF5DB29F536DD3919037F1E8A72B040D075571A10C9000294C57B5ECEEA791',
     )
   })
 })

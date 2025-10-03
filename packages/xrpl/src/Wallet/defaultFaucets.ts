@@ -14,42 +14,39 @@ export interface FaucetWallet {
 export enum FaucetNetwork {
   Testnet = 'faucet.altnet.rippletest.net',
   Devnet = 'faucet.devnet.rippletest.net',
-  HooksV3Testnet = 'hooks-testnet-v3.xrpl-labs.com',
 }
 
-export const FaucetNetworkPaths: Record<string, string> = {
+export const faucetNetworkPaths: Record<string, string> = {
   [FaucetNetwork.Testnet]: '/accounts',
   [FaucetNetwork.Devnet]: '/accounts',
-  [FaucetNetwork.HooksV3Testnet]: '/accounts',
 }
+
+export const faucetNetworkIDs: Map<number, FaucetNetwork> = new Map([
+  [1, FaucetNetwork.Testnet],
+  [2, FaucetNetwork.Devnet],
+])
 
 /**
  * Get the faucet host based on the Client connection.
  *
  * @param client - Client.
  * @returns A {@link FaucetNetwork}.
- * @throws When the client url is not on altnet or devnet.
+ * @throws When there is no known faucet for the client's network ID.
  */
 export function getFaucetHost(client: Client): FaucetNetwork | undefined {
-  const connectionUrl = client.url
-
-  if (connectionUrl.includes('hooks-testnet-v3')) {
-    return FaucetNetwork.HooksV3Testnet
-  }
-
-  // 'altnet' for Ripple Testnet server and 'testnet' for XRPL Labs Testnet server
-  if (connectionUrl.includes('altnet') || connectionUrl.includes('testnet')) {
-    return FaucetNetwork.Testnet
-  }
-
-  if (connectionUrl.includes('sidechain-net2')) {
+  if (client.networkID == null) {
     throw new XRPLFaucetError(
-      'Cannot fund an account on an issuing chain. Accounts must be created via the bridge.',
+      'Cannot create faucet URL without networkID or the faucetHost information',
     )
   }
 
-  if (connectionUrl.includes('devnet')) {
-    return FaucetNetwork.Devnet
+  if (faucetNetworkIDs.has(client.networkID)) {
+    return faucetNetworkIDs.get(client.networkID)
+  }
+
+  if (client.networkID === 0) {
+    // mainnet does not have a faucet
+    throw new XRPLFaucetError('Faucet is not available for mainnet.')
   }
 
   throw new XRPLFaucetError('Faucet URL is not defined or inferrable.')
@@ -60,11 +57,11 @@ export function getFaucetHost(client: Client): FaucetNetwork | undefined {
  *
  * @param hostname - hostname.
  * @returns A String with the correct path for the input hostname.
- * If hostname undefined or cannot find (key, value) pair in {@link FaucetNetworkPaths}, defaults to '/accounts'
+ * If hostname undefined or cannot find (key, value) pair in {@link faucetNetworkPaths}, defaults to '/accounts'
  */
-export function getDefaultFaucetPath(hostname: string | undefined): string {
+export function getFaucetPath(hostname: string | undefined): string {
   if (hostname === undefined) {
     return '/accounts'
   }
-  return FaucetNetworkPaths[hostname] || '/accounts'
+  return faucetNetworkPaths[hostname] || '/accounts'
 }

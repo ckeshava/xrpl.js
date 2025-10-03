@@ -5,12 +5,118 @@ Subscribe to [the **xrpl-announce** mailing list](https://groups.google.com/g/xr
 ## Unreleased
 
 ### Fixed
+* Fix incorrect type checking in `validateVaultCreate` that prevented vault creation with MPT as an asset.
+
+## 4.4.2 (2025-09-25)
+
+### Fixed
+* improve Batch inner transaction typing
+
+## 4.4.1 (2025-08-29)
+
+### Fixed
+* Prevent Node.js process termination when WebSocket send() errors after the connection is closed.
+
+## 4.4.0 (2025-07-29)
+
+### Added
+* Support for `PermissionedDEX` (XLS-81d)
+* Support for `Token Escrow` (XLS-85)
+* Support for `Single Asset Vault` (XLS-65)
+* Adds `XRPLNumber` amount type used in Vault transactions. This supports integer, decimal, or scientific notation strings.
+* Adds `ClawbackAmount` amount type used in transactions related to Clawback.
+* Fixed minified `build/xrpl-latest-min.js` to have all the latest xrpl package changes.
+* Add warning messages to `MPTokenIssuanceCreate` transaction as per [XLS-89d](https://github.com/XRPLF/XRPL-Standards/pull/293).
+
+### Fixed
+* Fix `AccountRoot` ledger object to correctly parse `FirstNFTokenSequence` field
+* Fail faster on `tem` errors with `submitAndWait`
+* Improved type-checking in models
+* Fix issue with some transactions that would crash in validation
+* Improve typing of `Batch` inner transactions
+
+## 4.3.0 (2025-06-09)
+
+### Added
+* Support for `NFTokenMintOffer` (XLS-52)
+* Add Github Actions step to auto-generate documentation
+* Support for `Account Permissions` and `Account Permission Delegation` (XLS-74d, XLS-75d)
+* Add support for `Batch` amendment (XLS-56)
+
+### Fixed
+* Fix `OracleSet` transaction to accept hexadecimal string values for `AssetPrice` field
+* `TransactionStream` model includes `hash` field in APIv2
+* `TransactionStream` model includes `close_time_iso` field only for APIv2
+* Adds `MPTCurrency` type
+* Improve faucet support
+* Improve multisign fee calculations
+
+## 4.2.0 (2025-2-13)
+
+### Added
+* Support for the AMMClawback amendment (XLS-73)
+* Adds utility function `convertTxFlagsToNumber`
+* Support for the Permissioned Domains amendment (XLS-80).
+* Support for the `simulate` RPC ([XLS-69](https://github.com/XRPLF/XRPL-Standards/tree/master/XLS-0069-simulate))
+* Support for XLS-77d Deep-Freeze amendment
+
+### Changed
+* Deprecated `setTransactionFlagsToNumber`. Start using convertTxFlagsToNumber instead
+
+### Fixed
+* Include `network_id` field in the `server_state` response interface.
+
+## 4.1.0 (2024-12-23)
+
+### Added
+* Added new MPT transaction definitions (XLS-33)
+* New `MPTAmount` type support for `Payment` and `Clawback` transactions
+* `parseTransactionFlags` as a utility function in the xrpl package to streamline transactions flags-to-map conversion
+* Support for XLS-70d (Credentials)
+* Support for the `DynamicNFT` amendment (XLS-46)
+
+### Fixed
+* `TransactionStream` model supports APIv2
+* `TransactionStream` model includes `close_time_iso` field
+* `Ledger` model includes `close_time_iso` field
+* Remove hard-coded reference to 10 drops as the reference transaction cost. Ensure tests passed for all transaction fee scenarios and `AMMCreate` transaction fee calculation is correct in case `owner_reserve` increases.
+
+## 4.0.0 (2024-07-15)
+
+### BREAKING CHANGES
+* Use rippled api_version v2 as default while maintaining support for v1.
+
+### Added
+* Add `nfts_by_issuer` clio-only API definition
+* Add `include_deleted` to ledgerEntry request and `deleted_ledger_index` to ledgerEntry response
+* Support for the `fixPreviousTxnID` amendment.
+* Support for the user version of the `feature` RPC.
+* Add `hash` field to `ledger` command response
+
+### Removed
+* Remove references to the Hooks testnet faucet in the xrpl.js code repository.
+
+## 3.1.0 (2024-06-03)
+
+### BREAKING CHANGES
+* Small fix in the API to use a new flag name `tfNoDirectRipple` instead of the existing flag name `tfNoRippleDirect`
+* Node.js has been upgraded to a minimum version of 18
+* `fetch` now relies on the native javascript environment in browsers and Node.js
+
+### Added
+* Support for the Price Oracles amendment (XLS-47).
+
+### Fixed
 * Typo in `Channel` type `source_tab` -> `source_tag`
 * Fix `client.requestAll` to handle filters better
+* Add the missing `AMMDeposit` flag `tfTwoAssetIfEmpty`
+* Add missing `lsfAMMNode` flag to `RippleState` ledger object
+* Add `PreviousFields` to `DeletedNode` metadata type
 
 ## 3.0.0 (2024-02-01)
 
 ### BREAKING CHANGES
+* The default signing algorithm in the `Wallet` was changed from secp256k1 to ed25519
 * Bump typescript to 5.x
 * Remove Node 14 support
 * Remove `crypto` polyfills, `create-hash`, `elliptic`, `hash.js`, and their many dependencies in favor of `@noble/hashes` and `@nobel/curves`

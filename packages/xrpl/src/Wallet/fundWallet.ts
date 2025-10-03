@@ -1,14 +1,9 @@
-import fetch from 'cross-fetch'
 import { isValidClassicAddress } from 'ripple-address-codec'
 
 import type { Client } from '../client'
 import { XRPLFaucetError } from '../errors'
 
-import {
-  FaucetWallet,
-  getFaucetHost,
-  getDefaultFaucetPath,
-} from './defaultFaucets'
+import { FaucetWallet, getFaucetHost, getFaucetPath } from './defaultFaucets'
 
 import { Wallet } from '.'
 
@@ -149,7 +144,7 @@ export async function requestFunding(
   if (!hostname) {
     throw new XRPLFaucetError('No faucet hostname could be derived')
   }
-  const pathname = options.faucetPath ?? getDefaultFaucetPath(hostname)
+  const pathname = options.faucetPath ?? getFaucetPath(hostname)
   const response = await fetch(`https://${hostname}${pathname}`, {
     method: 'POST',
     headers: {
@@ -191,31 +186,24 @@ async function processSuccessfulResponse(
       new XRPLFaucetError(`The faucet account is undefined`),
     )
   }
-  try {
-    // Check at regular interval if the address is enabled on the XRPL and funded
-    const updatedBalance = await getUpdatedBalance(
-      client,
-      classicAddress,
-      startingBalance,
-    )
+  // Check at regular interval if the address is enabled on the XRPL and funded
+  const updatedBalance = await getUpdatedBalance(
+    client,
+    classicAddress,
+    startingBalance,
+  )
 
-    if (updatedBalance > startingBalance) {
-      return {
-        wallet: walletToFund,
-        balance: updatedBalance,
-      }
+  if (updatedBalance > startingBalance) {
+    return {
+      wallet: walletToFund,
+      balance: updatedBalance,
     }
-    throw new XRPLFaucetError(
-      `Unable to fund address with faucet after waiting ${
-        INTERVAL_SECONDS * MAX_ATTEMPTS
-      } seconds`,
-    )
-  } catch (err) {
-    if (err instanceof Error) {
-      throw new XRPLFaucetError(err.message)
-    }
-    throw err
   }
+  throw new XRPLFaucetError(
+    `Unable to fund address with faucet after waiting ${
+      INTERVAL_SECONDS * MAX_ATTEMPTS
+    } seconds`,
+  )
 }
 
 async function processError(response: Response, body): Promise<never> {
@@ -223,7 +211,7 @@ async function processError(response: Response, body): Promise<never> {
     new XRPLFaucetError(
       `Request failed: ${JSON.stringify({
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment -- json response could be anything
-        body: body || {},
+        body: body ?? {},
         contentType: response.headers.get('Content-Type'),
         statusCode: response.status,
       })}`,
