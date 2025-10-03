@@ -276,15 +276,22 @@ jobs:
       url: ${{ steps.docs-artifact.outputs.page_url }}
     runs-on: ubuntu-latest
     needs: generate-documentation
-    # Deploy docs only pushes into the main branch
+
     if: success()
     steps:
       - name: Display the branch name and tag name references
         run: |
-          echo "base_ref=${{ github.event.base_ref }}"
-          echo "ref=${{ github.event.ref }}"
+          echo "PR_target_branch=${{ github.event.base_ref }}"
+          echo "tag_name=${{ github.event.ref }}"
 
-      - name: Detect (non-beta) version tag
+      - name: Detect if the PR target branch points to main
+        id: check-main-branch
+        run: |
+          if [[ ${{ github.event.base_ref }} == 'refs/heads/main' ]]; then
+            echo "is_main_branch=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Detect version tag
         id: check-tag
         run: |
           if [[ ${{ github.event.ref }} =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+(-.+)?$ ]]; then
@@ -293,5 +300,6 @@ jobs:
 
       - name: Deploy to Documentation to GitHub Pages
         id: docs-artifact
-        if: steps.check-tag.outputs.published_version_tag == 'true'
+        # Only tagged-pushes into the main branch triggers this workflow-step
+        if: steps.check-tag.outputs.published_version_tag == 'true' && steps.check-main-branch.outputs.is_main_branch == 'true'
         uses: actions/deploy-pages@v4
