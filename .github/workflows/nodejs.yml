@@ -267,7 +267,7 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: docs/
-          retention-days: 10
+          retention-days: 1
 
   deploy-docs-pages:
     permissions:
