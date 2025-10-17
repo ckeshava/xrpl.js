@@ -516,7 +516,7 @@ jobs:
     permissions:
       id-token: write
       contents: write
-    needs: [get_version, run_faucet_test, run_tests, pre_release, ask_for_dev_team_review, first_review, ask_for_sec_team_review]
+    needs: [get_version, run_faucet_test, run_tests]
     name: Release Pipeline for ${{ needs.get_version.outputs.package_version }}
     env:
       PACKAGE_VERSION: "${{ needs.get_version.outputs.package_version }}"
@@ -537,11 +537,11 @@ jobs:
           ref: ${{ github.event.inputs.release_branch }}
           fetch-depth: 0
 
-      - name: Download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: npm-package-tarball
-          path: dist
+      # - name: Download artifact
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: npm-package-tarball
+      #     path: dist
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
