@@ -618,18 +618,18 @@ jobs:
       #       -d "$(jq -n --arg channel "#xrpl-js" --arg text "$text" '{channel:$channel, text:$text}')"
 
       # - name: Notify Slack if tests fail
-        if: failure()
-        env:
-          SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
-        run: |
-          MESSAGE="❌ Release failed for ${{ env.PACKAGE_NAME }}@${{ env.PACKAGE_VERSION }}. Check the logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          curl -X POST https://slack.com/api/chat.postMessage \
-            -H "Authorization: Bearer $SLACK_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "$(jq -n \
-                  --arg channel "#xrpl-js" \
-                  --arg text "$MESSAGE" \
-                  '{channel: $channel, text: $text}')"
+        # if: failure()
+        # env:
+        #   SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}
+        # run: |
+        #   MESSAGE="❌ Release failed for ${{ env.PACKAGE_NAME }}@${{ env.PACKAGE_VERSION }}. Check the logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        #   curl -X POST https://slack.com/api/chat.postMessage \
+        #     -H "Authorization: Bearer $SLACK_TOKEN" \
+        #     -H "Content-Type: application/json" \
+        #     -d "$(jq -n \
+        #           --arg channel "#xrpl-js" \
+        #           --arg text "$MESSAGE" \
+        #           '{channel: $channel, text: $text}')"
 
   generate-documentation:
     name: Generate and Publish documentation for ${{ needs.get_version.outputs.package_version }}
