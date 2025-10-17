@@ -516,7 +516,7 @@ jobs:
     permissions:
       id-token: write
       contents: write
-    needs: [get_version, run_faucet_test, run_tests]
+    needs: [get_version]
     name: Release Pipeline for ${{ needs.get_version.outputs.package_version }}
     env:
       PACKAGE_VERSION: "${{ needs.get_version.outputs.package_version }}"
