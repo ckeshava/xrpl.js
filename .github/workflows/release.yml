@@ -637,3 +637,7 @@ jobs:
     needs: [get_version, release]
     with:
       git_ref: ${{ github.event.inputs.release_branch }}
+    permissions:
+      contents: read
+      id-token: write
+      pages: write
