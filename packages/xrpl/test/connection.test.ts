@@ -546,6 +546,66 @@ describe('Connection', function () {
     }, 70001)
   })
 
+  it('should not accumulate connected event listeners on reconnect (issue #3210)', async function () {
+    if (isBrowser) {
+      if (navigator.userAgent.includes('PhantomJS')) {
+        return
+      }
+    }
+
+    async function breakConnection(): Promise<void> {
+      await clientContext.client.connection
+        .request({
+          command: 'test_command',
+          data: { disconnectIn: 10 },
+        })
+        .catch(ignoreWebSocketDisconnect)
+    }
+
+    // Track how many times the Client 'connected' event fires per reconnect cycle
+    const firesPerCycle: number[] = []
+    let currentCycleCount = 0
+    let cyclesDone = 0
+    const totalCycles = 3
+
+    clientContext.client.on('connected', () => {
+      currentCycleCount += 1
+    })
+
+    const allDone = new Promise<void>((resolve, reject) => {
+      clientContext.client.connection.on('connected', () => {
+        cyclesDone += 1
+
+        // Give a short delay to let any duplicate 'connected' events fire
+        setTimeout(() => {
+          firesPerCycle.push(currentCycleCount)
+          currentCycleCount = 0
+
+          if (cyclesDone < totalCycles) {
+            breakConnection()
+          } else {
+            // Each cycle should have exactly 1 'connected' event on the Client
+            for (let i = 0; i < firesPerCycle.length; i++) {
+              if (firesPerCycle[i] !== 1) {
+                reject(
+                  new XrplError(
+                    `Cycle ${i + 1}: Client 'connected' event fired ${firesPerCycle[i]} times (expected 1). ` +
+                    `Listener accumulation detected! Fires per cycle: [${firesPerCycle.join(', ')}]`,
+                  ),
+                )
+                return
+              }
+            }
+            resolve()
+          }
+        }, 100)
+      })
+    })
+
+    await breakConnection()
+    await allDone
+  }, 70001)
+
   it('reconnect event on heartbeat failure', async function () {
     if (isBrowser) {
       if (navigator.userAgent.includes('PhantomJS')) {
