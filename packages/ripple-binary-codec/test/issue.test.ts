@@ -82,3 +82,37 @@ describe('Issue type conversion functions', () => {
     }).toThrow(new Error('Invalid type to construct an Issue'))
   })
 })
+
+/**
+ * The internal 44-byte buffer for an MPT issue is `issuer(20) ‖ NO_ACCOUNT(20) ‖ seq(4)`.
+ * Issue.from() takes the big-endian sequence from `mpt_issuance_id` and writes it as
+ * little-endian into the buffer. Issue.fromParser() stores the wire bytes verbatim.
+ * Issue.toJSON() reads the trailing 4 bytes as little-endian unconditionally.
+ *
+ * When a wire blob carries the sequence in the same byte order as the JSON
+ * mpt_issuance_id (big-endian), the two ingress paths produce different internal
+ * buffers for the same logical id, and toJSON() returns a byte-reversed mpt_issuance_id.
+ *
+ * Sequence 0x00010203 is non-palindromic under byte reversal so the corruption is
+ * visible in the assertion diff.
+ */
+describe('Issue MPT serialization — from()/fromParser() consistency', () => {
+  const issuerHex = 'E0739D43718DB5815CE070D4D514A261EC872C93'
+  const seqBeHex = '00010203'
+  const noAccountHex = '0000000000000000000000000000000000000001'
+  const mptIssuanceId = seqBeHex + issuerHex
+  const wireSeqBe = issuerHex + noAccountHex + seqBeHex
+
+  it('from(JSON) and fromParser(BE-seq wire) produce equal internal buffers', () => {
+    const fromJson = Issue.from({ mpt_issuance_id: mptIssuanceId })
+    const fromWire = Issue.fromParser(new BinaryParser(wireSeqBe))
+    expect(fromJson.toHex().toUpperCase()).toEqual(
+      fromWire.toHex().toUpperCase(),
+    )
+  })
+
+  it('fromParser(BE-seq wire).toJSON() round-trips mpt_issuance_id', () => {
+    const fromWire = Issue.fromParser(new BinaryParser(wireSeqBe))
+    expect(fromWire.toJSON()).toEqual({ mpt_issuance_id: mptIssuanceId })
+  })
+})
